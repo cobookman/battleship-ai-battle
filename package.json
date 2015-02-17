@@ -1,0 +1,23 @@
+{
+  "name": "battleship-ai-battle",
+  "version": "1.0.0",
+  "description": "Submit a pull request to have your AI play uno",
+  "main": "src/battle.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cobookman/battleship-ai-battle.git"
+  },
+  "author": "Colin Bookman <cobookman@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cobookman/battleship-ai-battle/issues"
+  },
+  "homepage": "https://github.com/cobookman/battleship-ai-battle",
+  "dependencies": {
+    "knuth-shuffle": "^1.0.1",
+    "lodash": "^3.2.0"
+  }
+}
