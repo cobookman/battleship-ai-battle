@@ -1,4 +1,5 @@
 var Deck = require('./Deck');
+var cardConsts = require('./Deck/consts');
 var fs = require('fs');
 var shuffle = require('knuth-shuffle').knuthShuffle;
 var _ = require('lodash');
@@ -13,8 +14,9 @@ function Game() {
 
     this.turn = 0; // the player who's turn it is
     this.direction = 1; // 1 = Clockwise, -1 = Counter Clockwise
-
+    this.leaderboard = []; // List of winners from first to last
     this.play();
+    return this.leaderboard;
 }
 
 Game.prototype.registerPlayers = function() {
@@ -42,6 +44,9 @@ Game.prototype.deal = function() {
     }
 };
 
+/**
+ * Plays one game of uno, returns until only 1 player left
+ */
 Game.prototype.play = function() {
     // loop until we have 1 player left
     while(!this.isOver()) {
@@ -50,9 +55,13 @@ Game.prototype.play = function() {
     }
 };
 
+/**
+ * Returns the index of the player who's turn is next
+ * @return {number}
+ */
 Game.prototype.nextTurnValue = function() {
     // increment/decrement the turn
-    this.turn = this.turn + this.direction;
+    var output = this.turn + this.direction;
 
     /**
      * Our game is circular...lets force this
@@ -61,37 +70,61 @@ Game.prototype.nextTurnValue = function() {
      *     player 1 is sitting to the right of player 0
      */
     if(this.direction === 1 && this.turn >= this.players.length) {
-        this.turn = 0;
+        output = 0;
     }
     else if(this.direction === -1 && this.turn < 0) {
-        this.turn = this.players.length - 1;
+        output = this.players.length - 1;
     }
+
+    return output;
 };
 
+/**
+ * Tells you if the card is in the hand, and if it can be played
+ * @param {object} card A Card object
+ * @param {array} hand An array of Card objects
+ */
 Game.prototype.isValidMove = function(card, hand) {
     var isCardInHand = (this.indexOfCardInHand(card, hand) !== -1);
     return (this.canPlaceCard(card) && isCardInHand);
 };
 
+/**
+ * Tells you if a card can be placed as a valid uno move
+ * @param {object} card A Card Object
+ * @return {boolean}
+ */
 Game.prototype.canPlaceCard = function(card) {
+    var isValidCardColor = cardConsts.colors.indexOf(card.color) !== -1;
+    var isValidCardType = cardConsts.cardTypes.indexOf(card.type) !== -1;
     var isValid = false;
 
-    // wild cards can be placed on top of any card, must specify the new deck color
-    if (card.type === 'wild' && ['red', 'green', 'blue', 'yellow'].indexOf(card.color) !== -1) {
-        isValid = true;
+    if(isValidCardColor && isValidCardType) {
+        // wild cards can be placed on top of any card, it also must specify the new deck color
+        if (card.type === 'wild') {
+                isValid = true;
+        }
+        // same color card...then A-ok
+        else if (card.color === this.deck.topCard.color) {
+            isValid = true;
+        }
+        // if card type and value, but different color then its a-ok
+        else if (card.type === this.deck.topCard.type &&
+                 card.value === this.deck.topCard.value) {
+
+            isValid = true;
+        }
     }
-    // same color card...then A-ok
-    else if (card.color && card.color === this.deck.topCard.color) {
-        isValid = true;
-    }
-    // if card type and value, but different color then its a-ok
-    else if (card.type === this.deck.topCard.type &&
-             card.value === this.deck.topCard.value) {
-        isValid = true;
-    }
+
     return isValid;
 };
 
+/**
+ * Returns the index of where a equivalent Card object appears in the hand
+ * @param {object} card A Card object
+ * @param {object} hand A Uno card hand
+ * @return {number} Index of hand [0, hand.length - 1], or -1 if not found
+ */
 Game.prototype.indexOfCardInHand = function(card, hand) {
     for(var c = 0; c < hand.length; ++c) {
         if (hand[c].type === card.type ||
@@ -103,6 +136,10 @@ Game.prototype.indexOfCardInHand = function(card, hand) {
     return -1;
 };
 
+/**
+ * Draws a card into current player's hand (aka no move)
+ * @return {object} the card which was drawn
+ */
 Game.prototype.onNoMove = function() {
     var drawnCard = this.deck.draw();
     this.players[this.turn].hand.push(this.deck.draw());
@@ -114,6 +151,21 @@ Game.prototype.banCurrentPlayer = function() {
     this.removeCurrentPlayer();
 };
 
+/**
+ * Adds player to leaderboard, and cleans player up as he/she has won
+ * @param {object} player A Player
+ */
+Game.prototype.playerWon = function(player) {
+    console.log(player.identity, "Has just finished playing uno");
+    this.leaderboard.push(player);
+    this.removeCurrentPlayer();
+};
+
+/**
+ * Places the card ontop of the deck, and runs any necessary actions
+ * E.g: having next player draw 4...etc
+ * @param {object} card A Card Object to be placed on top of deck
+ */
 Game.prototype.executeMove = function(card) {
     var player = this.players[this.turn];
 
@@ -125,8 +177,7 @@ Game.prototype.executeMove = function(card) {
 
     // check if player has won
     if(player.hand.length === 0) {
-        console.log(player.identity, "Has just finished playing uno");
-        this.removeCurrentPlayer();
+        this.playerWon(player);
     }
 
     // handle special actions of card
@@ -145,16 +196,18 @@ Game.prototype.executeMove = function(card) {
                 break;
         }
     }
-    else if (card.type === 'wild') {
-        if(card.value === 'wild draw 4') {
-            var p = this.nextTurnValue();
-            for(var i = 0; i < 4; ++i) {
-                this.players[p].hand.push(this.deck.draw());
-            }
+    else if (card.type === 'wild' && card.value === 'wild draw 4') {
+        var p = this.nextTurnValue();
+        for(var i = 0; i < 4; ++i) {
+            this.players[p].hand.push(this.deck.draw());
         }
     }
 };
 
+/**
+ * Has the current AI who's turn it is,
+ * play their move...handling all logistics
+ */
 Game.prototype.playTurn = function() {
     var player = this.players[this.turn];
     var hand = _.cloneDeep(player.hand);
@@ -171,6 +224,9 @@ Game.prototype.playTurn = function() {
     this.executeMove(card);
 };
 
+/**
+ * Removes the current player from the game.
+ */
 Game.prototype.removeCurrentPlayer = function() {
     this.players[this.turn].splice(this.turn, 1);
 
@@ -199,8 +255,8 @@ Game.prototype.removeCurrentPlayer = function() {
 };
 
 /**
- * returns true if game is over (<= 1 player)
+ * returns true if game is over
  */
 Game.prototype.isOver = function () {
-    return (this.players.length < 2);
+    return (this.players.length <= 1);
 };

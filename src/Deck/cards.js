@@ -4,7 +4,7 @@ var deckConsts = require('./consts');
  * Generates a single fresh deck
  * @returns {array} A decks action cards
  */
-exports.populateDeck = function() {
+exports.generateDeck = function() {
     var cards = [];
     cards.concat(exports.numbers());
     cards.concat(exports.actions());

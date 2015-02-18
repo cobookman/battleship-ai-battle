@@ -1,8 +1,5 @@
-var deckConsts = require('./deckConsts');
-var cardGenerators = require('./cardGenerators');
+var cards = require('./cards');
 var shuffle = require('knuth-shuffle').knuthShuffle;
-
-var cardsInAUnoDeck = cardGenerators.populateDeck();
 
 /**
  * Represents a Uno Card Deck.
@@ -10,13 +7,14 @@ var cardsInAUnoDeck = cardGenerators.populateDeck();
  * @param {number} numberOfPlayers - The number of players in the game
  */
 function Deck(numberOfPlayers) {
-    this.numOfDecks = Math.ceil((numberOfPlayers || 0) / 5);
+    this.numOfDecks = Math.ceil((numberOfPlayers || 1) / 5);
 
 
     this.cards = [];
     for(var i = 0; i < this.numOfDecks; ++i) {
-        this.cards.concat(cardsInAUnoDeck);
+        this.cards.concat(cards.generateDeck());
     }
+
     this.topCard = null;
     this.cards = shuffle(this.cards);
 }
